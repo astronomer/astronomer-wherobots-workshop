@@ -1,0 +1,6 @@
+# Astro Runtime includes the following pre-installed providers packages: https://www.astronomer.io/docs/astro/runtime-image-architecture#provider-packages
+airflow-providers-wherobots==1.4.3 # TODO: Update once latest version is released
+apache-sedona[kepler-map]==1.8.0
+pandas==2.1.4
+pyspark==4.0.1
+ipykernel==7.1.0
