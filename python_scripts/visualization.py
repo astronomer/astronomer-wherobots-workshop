@@ -86,7 +86,6 @@ selected_county_df = sedona.sql(
 """
 )
 
-# Get center coordinates for the map viewport from the state boundary
 map_center = sedona.sql(
     f"""
     SELECT 
@@ -107,76 +106,11 @@ map_config = {
             "longitude": center_lon,
             "zoom": 6,
         },
-        "visState": {
-            "filters": [],
-            "layers": [
-                {
-                    "id": "hail_layer",
-                    "type": "geojson",
-                    "config": {
-                        "dataId": "hail",
-                        "label": f"Hail - {worst_date}",
-                        "color": [255, 153, 31],
-                        "columns": {"geojson": "geometry"},
-                        "isVisible": True,
-                        "visConfig": {
-                            "opacity": 0.8,
-                            "radius": 10,
-                            "filled": True,
-                            "stroked": True,
-                        },
-                    },
-                    "visualChannels": {
-                        "colorField": {"name": "MAXSIZE", "type": "real"},
-                        "colorScale": "quantile",
-                    },
-                },
-                {
-                    "id": "counties_layer",
-                    "type": "geojson",
-                    "config": {
-                        "dataId": "counties",
-                        "label": "Counties",
-                        "color": [34, 63, 154],
-                        "columns": {"geojson": "geometry"},
-                        "isVisible": True,
-                        "visConfig": {
-                            "opacity": 0.1,
-                            "strokeOpacity": 0.3,
-                            "thickness": 0.5,
-                            "filled": False,
-                            "stroked": True,
-                        },
-                    },
-                },
-                {
-                    "id": "selected_county_layer",
-                    "type": "geojson",
-                    "config": {
-                        "dataId": "selected_county",
-                        "label": county_label,
-                        "color": [0, 255, 100],
-                        "columns": {"geojson": "geometry"},
-                        "isVisible": True,
-                        "visConfig": {
-                            "opacity": 0.2,
-                            "strokeOpacity": 1.0,
-                            "thickness": 3,
-                            "strokeColor": [0, 255, 100],
-                            "filled": True,
-                            "stroked": True,
-                        },
-                    },
-                },
-            ],
-        },
-        "mapStyle": {"styleType": "dark-matter"},
+        "mapStyle": {"styleType": "dark"},
     },
 }
 
-worst_day_map = SedonaKepler.create_map(
-    state_hail_worst_day_df, name="hail", config=map_config
-)
+worst_day_map = SedonaKepler.create_map(state_hail_worst_day_df, name="hail")
 SedonaKepler.add_df(worst_day_map, counties_df, name="counties")
 SedonaKepler.add_df(worst_day_map, selected_county_df, name="selected_county")
 
@@ -197,7 +131,7 @@ output_path_obj = spark._jvm.org.apache.hadoop.fs.Path(output_path)
 
 
 if fs.exists(output_path_obj):
-    fs.delete(output_path_obj, True)  # True = recursive delete
+    fs.delete(output_path_obj, True)
 
 output_stream = fs.create(output_path_obj, True)
 
