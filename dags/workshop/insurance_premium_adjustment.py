@@ -54,6 +54,8 @@ def insurance_premium_adjustment():
     def calculate_insurance_premium(risk_df, **context):
         us_postcode = context["var"]["value"].get("us_postcode")
 
+        print(risk_df)
+
         county = risk_df[risk_df["area_type"] == "county"].iloc[0]
         state = risk_df[risk_df["area_type"] == "state"].iloc[0]
 
