@@ -30,6 +30,7 @@ sedona.sql(f"""
         SELECT 
             '{POSTCODE}' AS postcode,
             '{COUNTRY}' AS country,
+            region AS state_code,
             geometry AS area,
             CURRENT_TIMESTAMP() AS created_at
         FROM wherobots_open_data.overture_maps_foundation.divisions_division_area
@@ -39,7 +40,7 @@ sedona.sql(f"""
         LIMIT 1
     ) AS source
     ON target.postcode = source.postcode AND target.country = source.country
-    WHEN MATCHED THEN UPDATE SET area = source.area, created_at = source.created_at
+    WHEN MATCHED THEN UPDATE SET state_code = source.state_code, area = source.area, created_at = source.created_at
     WHEN NOT MATCHED THEN INSERT *
 """)
 

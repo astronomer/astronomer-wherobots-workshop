@@ -14,7 +14,7 @@ _RUNTIME = Runtime.TINY
 _REGION = Region.AWS_US_WEST_2
 _CATALOG = os.getenv("CATALOG", "org_catalog")
 _DATABASE = os.getenv("DATABASE", "astronomer_workshop")
-_S3_URI = os.getenv("S3_URI")
+_S3_URI = os.getenv("S3_URI").rstrip("/")
 _END_DATE = os.getenv("END_DATE", "2026-01-01")
 _LOOKBACK_MONTHS = os.getenv("LOOKBACK_MONTHS", 3)
 
@@ -24,6 +24,18 @@ _LOOKBACK_MONTHS = os.getenv("LOOKBACK_MONTHS", 3)
     template_searchpath=[f"{os.getenv('AIRFLOW_HOME')}/include/sql"],
 )
 def noaa_etl():
+
+    @task
+    def get_today_date(**context):
+        from datetime import datetime
+        from dateutil.relativedelta import relativedelta
+
+        run_after = context["dag_run"].run_after
+        run_date = datetime.strptime(run_after.strftime("%Y-%m-%d"), "%Y-%m-%d")
+
+        return run_date.strftime("%Y-%m-%d")
+
+    _get_today_date = get_today_date()
 
     _load_hail_data = WherobotsRunOperator(
         task_id="load_hail_data",
@@ -39,7 +51,7 @@ def noaa_etl():
                 "--database",
                 _DATABASE,
                 "--end-date",
-                _END_DATE,
+                _get_today_date,
                 "--lookback-months",
                 str(_LOOKBACK_MONTHS),
             ],

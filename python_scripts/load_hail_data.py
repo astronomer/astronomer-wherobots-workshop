@@ -33,31 +33,14 @@ config = (
 sedona = SedonaContext.create(config)
 
 
-end_date = datetime.strptime(END_DATE, "%Y-%m-%d").replace(day=1) - relativedelta(
-    months=1
-)  # first day of the last completed month
-
+end_date = datetime.strptime(END_DATE, "%Y-%m-%d").replace(day=1) - relativedelta(months=1)
 start_date = end_date - relativedelta(months=LOOKBACK_MONTHS)
 
-current_year = datetime.now().year
-
-# Collect S3 files to fetch: yearly for past years, monthly for current year
 files_to_fetch = []
 current = start_date
 while current <= end_date:
-    year = current.year
-    month = current.month
-
-    if year < current_year:
-        # Past year - use yearly file (only add once per year)
-        yearly_file = f"s3://noaa-swdi-pds/hail-{year}.csv"
-        if yearly_file not in files_to_fetch:
-            files_to_fetch.append(yearly_file)
-    else:
-        # Current year - use monthly file (YYYYMM format)
-        monthly_file = f"s3://noaa-swdi-pds/hail-{year}{month:02d}.csv"
-        files_to_fetch.append(monthly_file)
-
+    monthly_file = f"s3://noaa-swdi-pds/hail-{current.year}{current.month:02d}.csv"
+    files_to_fetch.append(monthly_file)
     current += relativedelta(months=1)
 
 print(f"Date range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")

@@ -3,10 +3,11 @@ USING (
     WITH areas AS (
         SELECT 
             p.postcode,
-            s.state_code,
+            p.state_code,
             ST_Area(ST_Transform(p.area, 'EPSG:4326', 'EPSG:3857')) / 2589988 AS county_area_sqmi,
             ST_Area(ST_Transform(s.geometry, 'EPSG:4326', 'EPSG:3857')) / 2589988 AS state_area_sqmi
-        FROM %(catalog)s.%(database)s.postcode_areas p, %(catalog)s.%(database)s.state_boundary s
+        FROM %(catalog)s.%(database)s.postcode_areas p
+        JOIN %(catalog)s.%(database)s.state_boundary s ON p.state_code = s.state_code
         WHERE p.postcode = '%(us_postcode)s'
     ),
     
@@ -37,7 +38,8 @@ USING (
             AVG(NULLIF(PROB, -999)) AS avg_hail_prob,
             COUNT(CASE WHEN NULLIF(MAXSIZE, -999) >= 1.0 THEN 1 END) AS damaging_events,
             COUNT(CASE WHEN NULLIF(SEVPROB, -999) >= 50 THEN 1 END) AS high_risk_events
-        FROM %(catalog)s.%(database)s.hail_state h, areas a
+        FROM %(catalog)s.%(database)s.hail_state h
+        JOIN areas a ON h.state_code = a.state_code
         WHERE ZTIME >= DATE_SUB(CURRENT_DATE(), 180)
         GROUP BY a.state_code
     )

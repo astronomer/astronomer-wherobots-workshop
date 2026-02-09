@@ -1,0 +1,353 @@
+---
+description: Airflow 3.x DAG syntax patterns and best practices
+globs: dags/**/*.py
+---
+
+# Airflow 3.x DAG Syntax Reference
+
+This skill covers Airflow 3.x SDK syntax patterns for building DAGs.
+
+## Imports
+
+```python
+from airflow.sdk import dag, task, chain, Asset, Param
+from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.hitl import HITLOperator
+from pendulum import datetime
+from datetime import timedelta
+```
+
+## Basic DAG Structure
+
+Use the `@dag` decorator to define a DAG:
+
+```python
+@dag(
+    start_date=datetime(2026, 1, 1),
+    schedule="@daily",  # or None, or cron expression, or Asset list
+    tags=["my_tag"],
+)
+def my_dag():
+    # tasks go here
+    pass
+
+my_dag()  # Must call the function to register the DAG
+```
+
+## TaskFlow API (@task decorator)
+
+Define tasks using the `@task` decorator. Return values become XCom automatically:
+
+```python
+@task
+def my_task():
+    return "result"
+
+@task
+def process_result(data):
+    return data.upper()
+
+# Inside DAG:
+_my_task = my_task()
+_process_result = process_result(_my_task)  # Pass return value as argument
+```
+
+### Accessing Context in Tasks
+
+Use `**context` to access DAG run context, params, etc.:
+
+```python
+@task
+def fetch_params(**context):
+    my_param = context["params"]["my_param"]
+    return my_param
+```
+
+## Traditional Operators
+
+Use traditional operators alongside TaskFlow tasks:
+
+```python
+_bash_task = BashOperator(
+    task_id="print_result",
+    bash_command="echo {{ ti.xcom_pull(task_ids='my_task') }}",
+)
+```
+
+## Task Dependencies with chain()
+
+Use `chain()` to set sequential dependencies:
+
+```python
+from airflow.sdk import chain
+
+chain(task_1, task_2, task_3)  # task_1 >> task_2 >> task_3
+```
+
+## DAG Parameters (User Input)
+
+Define parameters that users can provide at trigger time:
+
+```python
+from airflow.sdk import Param
+
+@dag(
+    params={"my_number": Param(type="integer", default=42)},
+)
+def parameterized_dag():
+    @task
+    def use_param(**context):
+        value = context["params"]["my_number"]
+        return value
+```
+
+## Asset-Based Scheduling
+
+### Producer DAG (creates an Asset)
+
+```python
+from airflow.sdk import Asset
+
+@dag()
+def producer_dag():
+    @task(outlets=[Asset("my_data_asset")])
+    def produce_data():
+        print("Producing data...")
+
+    produce_data()
+
+producer_dag()
+```
+
+### Consumer DAG (triggered by Asset)
+
+```python
+@dag(schedule=[Asset("my_data_asset")])
+def consumer_dag():
+    @task
+    def consume_data():
+        print("Consuming data...")
+
+    consume_data()
+
+consumer_dag()
+```
+
+## Dynamic Task Mapping
+
+Create dynamic number of task instances at runtime using `.partial().expand()`:
+
+```python
+@dag()
+def dynamic_dag():
+    @task
+    def get_items():
+        return [1, 2, 3, 4, 5]  # Dynamic list
+
+    @task
+    def process_item(item, multiplier):
+        return item * multiplier
+
+    items = get_items()
+    # partial() sets fixed args, expand() maps over dynamic args
+    process_item.partial(multiplier=10).expand(item=items)
+
+dynamic_dag()
+```
+
+## Human-in-the-Loop (HITL)
+
+Pause DAG execution for human input:
+
+```python
+from airflow.providers.standard.operators.hitl import HITLOperator
+
+@dag()
+def hitl_dag():
+    @task
+    def upstream():
+        return "Context for decision"
+
+    _upstream = upstream()
+
+    _hitl = HITLOperator(
+        task_id="human_decision",
+        subject="Please make a choice",  # Templatable
+        body="{{ ti.xcom_pull(task_ids='upstream') }}",  # Templatable
+        options=["Option A", "Option B", "Option C"],  # Required, cannot be empty
+        defaults=["Option A"],  # Pre-selected defaults
+        params={
+            "Reason": Param(type="string", default="..."),
+        },
+    )
+
+    @task
+    def handle_response(hitl_output):
+        chosen = hitl_output["chosen_options"]
+        reason = hitl_output["params_input"]["Reason"]
+        print(f"Chosen: {chosen}, Reason: {reason}")
+
+    _handle = handle_response(_hitl.output)
+
+    chain(_upstream, _hitl, _handle)
+
+hitl_dag()
+```
+
+## Retries and Error Handling
+
+### Failure Callbacks
+
+```python
+def on_failure_callback(context):
+    task_id = context["task_instance"].task_id
+    error = context["exception"]
+    print(f"Task {task_id} failed: {error}")
+```
+
+### DAG-Level Default Args
+
+```python
+@dag(
+    schedule=None,
+    default_args={
+        "retries": 3,
+        "retry_delay": timedelta(seconds=30),
+        "retry_exponential_backoff": True,  # Exponential backoff
+        "on_failure_callback": on_failure_callback,
+        "execution_timeout": timedelta(minutes=30),  # Per-task timeout
+    },
+    max_consecutive_failed_dag_runs=10,  # Auto-pause after N failures
+    dagrun_timeout=timedelta(hours=4),  # Entire DAG run timeout
+)
+def robust_dag():
+    pass
+```
+
+## Wherobots Integration
+
+### Airflow Connection Format
+
+Set the Wherobots connection as an environment variable (e.g., in `.env`):
+
+```bash
+AIRFLOW_CONN_WHEROBOTS_DEFAULT='{
+    "conn_type":"generic",
+    "host":"api.cloud.wherobots.com",
+    "password":"<your-wherobots-api-key>"
+}'
+```
+
+### Environment Setup
+
+```python
+import os
+from wherobots.db.runtime import Runtime
+from wherobots.db.region import Region
+
+WHEROBOTS_CONN_ID = os.getenv("WHEROBOTS_CONN_ID", "wherobots_default")
+RUNTIME = Runtime.MICRO  # or SMALL, MEDIUM, LARGE, etc.
+REGION = Region.AWS_US_WEST_2
+```
+
+### WherobotsSqlHook (in @task)
+
+```python
+from include.custom_wherobots_provider.hooks.hooks_sql_custom import WherobotsSqlHook
+
+@task
+def run_sql_query():
+    hook = WherobotsSqlHook(
+        wherobots_conn_id=WHEROBOTS_CONN_ID,
+        runtime=RUNTIME,
+        region=REGION,
+    )
+    conn = hook.get_conn()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM my_table")
+    return cursor.fetchall()
+```
+
+### WherobotsSqlOperator
+
+```python
+from include.custom_wherobots_provider.operators.operators_sql_custom import WherobotsSqlOperator
+
+WherobotsSqlOperator(
+    task_id="run_query",
+    wherobots_conn_id=WHEROBOTS_CONN_ID,
+    runtime=RUNTIME,
+    region=REGION,
+    sql="SELECT * FROM my_table",
+)
+```
+
+### WherobotsRunOperator (Run Python Script)
+
+```python
+from include.custom_wherobots_provider.operators.operators_run_custom import WherobotsRunOperator
+
+WherobotsRunOperator(
+    task_id="run_script",
+    name="job_{{ dag_run.run_after.strftime('%Y%m%dT%H%M%S') }}",  # Templated name
+    wherobots_conn_id=WHEROBOTS_CONN_ID,
+    runtime=RUNTIME,
+    region=REGION,
+    run_python={"uri": "s3://my-bucket/scripts/my_script.py"},
+    poll_logs=True,
+)
+```
+
+## Complete Example DAG
+
+```python
+from airflow.sdk import dag, task, chain, Param
+from airflow.providers.standard.operators.bash import BashOperator
+from pendulum import datetime
+from datetime import timedelta
+
+
+def on_failure(context):
+    print(f"Task {context['task_instance'].task_id} failed")
+
+
+@dag(
+    start_date=datetime(2026, 1, 1),
+    schedule="@daily",
+    params={"threshold": Param(type="integer", default=100)},
+    default_args={
+        "retries": 2,
+        "retry_delay": timedelta(minutes=5),
+        "on_failure_callback": on_failure,
+    },
+    tags=["example"],
+)
+def complete_example():
+    @task
+    def extract(**context):
+        threshold = context["params"]["threshold"]
+        return {"data": [1, 2, 3], "threshold": threshold}
+
+    @task
+    def transform(extracted):
+        return [x * 2 for x in extracted["data"]]
+
+    @task
+    def load(transformed):
+        print(f"Loading {len(transformed)} records")
+        return "success"
+
+    _extract = extract()
+    _transform = transform(_extract)
+    _load = load(_transform)
+
+    _notify = BashOperator(
+        task_id="notify",
+        bash_command="echo 'Pipeline complete'",
+    )
+
+    chain(_extract, _transform, _load, _notify)
+
+
+complete_example()
+```

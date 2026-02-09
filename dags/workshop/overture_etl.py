@@ -15,7 +15,7 @@ _REGION = Region.AWS_US_WEST_2
 _CATALOG = os.getenv("CATALOG", "org_catalog")
 _DATABASE = os.getenv("DATABASE", "astronomer_workshop")
 _COUNTRY = os.getenv("COUNTRY", "US")
-_S3_URI = os.getenv("S3_URI")
+_S3_URI = os.getenv("S3_URI").rstrip("/")
 
 
 @dag(

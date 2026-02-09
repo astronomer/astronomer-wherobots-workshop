@@ -15,7 +15,7 @@ from include.custom_wherobots_provider.operators.operators_run_custom import (
 import os
 
 _WHEROBOTS_CONN_ID = os.getenv("WHEROBOTS_CONN_ID", "wherobots_default")
-_URI_PYTHON_SCRIPT = f"{os.getenv('S3_URI')}/testing_script.py"
+_URI_PYTHON_SCRIPT = f"{os.getenv('S3_URI').rstrip('/')}/testing_script.py"
 _RUNTIME = Runtime.MICRO
 _REGION = Region.AWS_US_WEST_2
 

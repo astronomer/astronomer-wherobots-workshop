@@ -138,6 +138,12 @@ def subset_hail_data():
     )
 
     chain(
+        _calculate_comparison_hail_state_country,
+        _check_calculate_comparison_hail_state_country,
+        _print_calculate_comparison_hail_state_country,
+    )
+
+    chain(
         _subset_hail_data_state,
         _subset_hail_data_county,
         _calculate_comparison_hail_state_country,
