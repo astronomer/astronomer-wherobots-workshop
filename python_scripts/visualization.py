@@ -165,7 +165,13 @@ hadoop_conf = spark._jsc.hadoopConfiguration()
 fs = spark._jvm.org.apache.hadoop.fs.FileSystem.get(
     spark._jvm.java.net.URI(output_path), hadoop_conf
 )
-output_stream = fs.create(spark._jvm.org.apache.hadoop.fs.Path(output_path), True)
+output_path_obj = spark._jvm.org.apache.hadoop.fs.Path(output_path)
+
+# Delete existing path if it exists (handles both files and directories from previous runs)
+if fs.exists(output_path_obj):
+    fs.delete(output_path_obj, True)  # True = recursive delete
+
+output_stream = fs.create(output_path_obj, True)
 
 # Read local file and write to S3 as a single file
 with open(local_path, 'rb') as f:

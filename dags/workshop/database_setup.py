@@ -1,4 +1,4 @@
-from airflow.sdk import dag, chain
+from airflow.sdk import dag, chain, Asset, task
 from include.custom_wherobots_provider.operators.operators_sql_custom import (
     WherobotsSqlOperator,
 )
@@ -24,6 +24,7 @@ _TABLES_TO_CREATE = [
 
 
 @dag(
+    schedule=[Asset("start_database_setup")],
     template_searchpath=[
         f"{os.getenv('AIRFLOW_HOME')}/include/sql"
     ],  # point to the folder where SQL scripts are stored
@@ -43,29 +44,41 @@ def database_setup():
         return_last=False,
     )
 
-    _list_of_table_creation_tasks = []
+    @task
+    def load_sql_scripts():
+        sql_dir = f"{os.getenv('AIRFLOW_HOME')}/include/sql/workshop/database_setup"
+        sql_scripts = []
+        for table in _TABLES_TO_CREATE:
+            file_path = f"{sql_dir}/create_{table}_table_if_not_exists.sql"
+            with open(file_path, "r") as f:
+                sql_scripts.append(f.read())
+        return sql_scripts
 
-    # you can create Airflow tasks using Python code like loops
-    for table in _TABLES_TO_CREATE:
-        create_table_if_not_exists = WherobotsSqlOperator(
-            task_id=f"create_{table}_table_if_not_exists",
-            wherobots_conn_id=_WHEROBOTS_CONN_ID,
-            runtime=_RUNTIME,
-            region=_REGION,
-            sql=f"workshop/database_setup/create_{table}_table_if_not_exists.sql",  # run SQL stored in a script in a folder supplied to template_searchpath
-            parameters={
-                "catalog": _CATALOG,
-                "database": _DATABASE,
-            },  # Parameters are passed to the SQL at runtime.
-            return_last=False,
-        )
+    _sql_scripts = load_sql_scripts()
 
-        _list_of_table_creation_tasks.append(create_table_if_not_exists)
+    create_tables_if_not_exists = WherobotsSqlOperator.partial(
+        task_id="create_tables_if_not_exists",
+        wherobots_conn_id=_WHEROBOTS_CONN_ID,
+        runtime=_RUNTIME,
+        region=_REGION,
+        parameters={
+            "catalog": _CATALOG,
+            "database": _DATABASE,
+        },  # Parameters are passed to the SQL at runtime.
+        return_last=False,
+    ).expand(sql=_sql_scripts)
+
+    @task()#outlets=[Asset("start_noaa_etl"), Asset("start_overture_etl")])
+    def database_setup_complete():
+        print("Database setup complete")
+
+    _database_setup_complete = database_setup_complete()
 
     # the database needs to be created before the tables can be created
     chain(
         create_database_if_not_exists,
-        _list_of_table_creation_tasks,
+        create_tables_if_not_exists,
+        _database_setup_complete,
     )
 
 

@@ -1,21 +1,38 @@
-from airflow.sdk import dag, task, chain, Asset
+from airflow.sdk import dag, task, chain, Asset, Param
 from include.custom_wherobots_provider.operators.operators_sql_custom import (
     WherobotsSqlOperator,
 )
+from airflow.providers.standard.operators.hitl import HITLOperator
 from wherobots.db.runtime import Runtime
 from wherobots.db.region import Region
 import os
+from datetime import timedelta
 
 _WHEROBOTS_CONN_ID = os.getenv("WHEROBOTS_CONN_ID", "wherobots_default")
 _RUNTIME = Runtime.TINY
 _REGION = Region.AWS_US_WEST_2
 _CATALOG = os.getenv("CATALOG", "org_catalog")
-_DATABASE = os.getenv("DATABASE", "astronomer_workshop")
+_DATABASE = os.getenv("DATABASE", "workshoptestnotebook")
+
+
+def on_failure_callback(context):
+    print(f"Task {context['task_instance'].task_id} failed")
+    print(f"Error: {context['exception']}")
+    print(f"Traceback: {context['traceback']}")
 
 
 @dag(
     schedule=[Asset("hail_comparison_ready")],
-    tags=["Human-in-the-loop"],
+    default_args={
+        "retries": 3,
+        "retry_delay": timedelta(seconds=10),
+        "retry_exponential_backoff": True,
+        "on_failure_callback": on_failure_callback,
+        "execution_timeout": timedelta(minutes=30),
+    },
+    max_consecutive_failed_dag_runs=10,
+    dagrun_timeout=timedelta(hours=4),
+    tags=["Human-in-the-loop", "retries and callbacks"],
     template_searchpath=[f"{os.getenv('AIRFLOW_HOME')}/include/sql"],
 )
 def insurance_premium_adjustment():
@@ -37,10 +54,10 @@ def insurance_premium_adjustment():
     @task
     def calculate_insurance_premium(risk_df, **context):
         us_postcode = context["var"]["value"].get("us_postcode")
-        
+
         county = risk_df[risk_df["area_type"] == "county"].iloc[0]
         state = risk_df[risk_df["area_type"] == "state"].iloc[0]
-        
+
         print(f"\n{'Metric':<20} {'County':<15} {'State':<15}")
         print("=" * 50)
         for col in risk_df.columns:
@@ -89,11 +106,68 @@ def insurance_premium_adjustment():
         else:
             print(f"\nLower risk than state average - discount eligible")
 
+        return {
+            "state": state,
+            "county": county,
+            "premium_modifier_pct": premium_modifier_pct,
+            "frequency_ratio": frequency_ratio,
+            "size_ratio": size_ratio,
+            "severity_ratio": severity_ratio,
+            "damaging_ratio": damaging_ratio,
+            "risk_score": risk_score,
+        }
+
     _calculate_insurance_premium = calculate_insurance_premium(
         risk_df=_fetch_information_risk_comparison.output
     )
+    _human_confirm_insurance_premium_adjustment = HITLOperator(
+        task_id="human_confirm_insurance_premium_adjustment",
+        subject="Insurance Premium Adjustment",
+        body=f"""
+## Insurance Premium Adjustment Review
 
-    chain(_fetch_information_risk_comparison, _calculate_insurance_premium)
+**Location:** {_calculate_insurance_premium["county"]["area_id"]}, {_calculate_insurance_premium["state"]["area_id"]}
+
+---
+
+### Risk Analysis (vs State Average)
+
+| Metric | Ratio |
+|--------|-------|
+| Frequency | {_calculate_insurance_premium["frequency_ratio"]}x |
+| Hail Size | {_calculate_insurance_premium["size_ratio"]}x |
+| Severity | {_calculate_insurance_premium["severity_ratio"]}x |
+| Damaging Events | {_calculate_insurance_premium["damaging_ratio"]}x |
+
+---
+
+### Recommendation
+
+- **Risk Score:** {_calculate_insurance_premium["risk_score"]} *(1.0 = state average)*
+- **Premium Adjustment:** {_calculate_insurance_premium["premium_modifier_pct"]}%
+
+Please review and confirm or reject this adjustment.
+        """,
+        options=["Confirm", "Reject"],
+        defaults=["Confirm"],
+        params={"reason": Param(type="string", default="...")},
+    )
+
+    @task
+    def process_human_decision(hitl_result):
+        print(f"Decision: {hitl_result['chosen_options']}")
+        print(f"Reason: {hitl_result['params_input']['reason']}")
+
+    _process_human_decision = process_human_decision(
+        _human_confirm_insurance_premium_adjustment.output
+    )
+
+    chain(
+        _fetch_information_risk_comparison,
+        _calculate_insurance_premium,
+        _human_confirm_insurance_premium_adjustment,
+        _process_human_decision,
+    )
 
 
 insurance_premium_adjustment()
