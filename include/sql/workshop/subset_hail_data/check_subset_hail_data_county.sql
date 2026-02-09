@@ -1,0 +1,1 @@
+SELECT count(*) FROM %(catalog)s.%(database)s.hail_county WHERE postcode = '%(us_postcode)s';

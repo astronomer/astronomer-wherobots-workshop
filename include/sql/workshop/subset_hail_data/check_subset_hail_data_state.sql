@@ -1,0 +1,1 @@
+SELECT DISTINCT(state_code), COUNT(*) as state_hail_count FROM %(catalog)s.%(database)s.hail_state GROUP BY state_code;

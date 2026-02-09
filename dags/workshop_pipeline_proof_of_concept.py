@@ -3,7 +3,7 @@ from pendulum import datetime
 from wherobots.db.runtime import Runtime
 from wherobots.db.region import Region
 from include.custom_wherobots_provider.operators.operators_sql_custom import (
-    CUSTOMWherobotsSqlOperator,
+    WherobotsSqlOperator,
 )
 import os
 
@@ -50,7 +50,7 @@ def workshop_pipeline_proof_of_concept():
     @task_group
     def setup_wherobots():
 
-        create_database_if_not_exists = CUSTOMWherobotsSqlOperator(
+        create_database_if_not_exists = WherobotsSqlOperator(
             task_id="create_database_if_not_exists",
             wherobots_conn_id="wherobots_default",
             runtime=Runtime.TINY,
@@ -63,7 +63,7 @@ def workshop_pipeline_proof_of_concept():
             return_last=False,
         )
 
-        create_table_if_not_exists = CUSTOMWherobotsSqlOperator(
+        create_table_if_not_exists = WherobotsSqlOperator(
             task_id="create_table_if_not_exists",
             wherobots_conn_id="wherobots_default",
             runtime=Runtime.TINY,
@@ -100,7 +100,7 @@ def workshop_pipeline_proof_of_concept():
         @task(max_active_tis_per_dag=2)
         def load_data_s3_to_wherobots(date: str, **context):
             from include.custom_wherobots_provider.hooks.hooks_sql_custom import (
-                CUSTOMWherobotsSqlHook,
+                WherobotsSqlHook,
             )
             from include.helpers.sedona_helpers import (
                 fetch_noaa_data_from_s3,
@@ -159,7 +159,7 @@ def workshop_pipeline_proof_of_concept():
 
     _load_data = load_data()
 
-    _verify_data_loaded = CUSTOMWherobotsSqlOperator(
+    _verify_data_loaded = WherobotsSqlOperator(
         task_id="verify_data_loaded",
         wherobots_conn_id="wherobots_default",
         runtime=Runtime.TINY,
@@ -177,7 +177,7 @@ def workshop_pipeline_proof_of_concept():
     @task_group
     def transform_data():
 
-        _create_texas_hail_table = CUSTOMWherobotsSqlOperator(
+        _create_texas_hail_table = WherobotsSqlOperator(
             task_id="create_texas_hail_table_for_subset_date",
             wherobots_conn_id="wherobots_default",
             runtime=Runtime.TINY,
@@ -192,7 +192,7 @@ def workshop_pipeline_proof_of_concept():
             return_last=False,
         )
 
-        _verify_texas_data = CUSTOMWherobotsSqlOperator(
+        _verify_texas_data = WherobotsSqlOperator(
             task_id="verify_texas_data_for_subset_date",
             wherobots_conn_id="wherobots_default",
             runtime=Runtime.TINY,
@@ -216,7 +216,7 @@ def workshop_pipeline_proof_of_concept():
     @task
     def create_visualization(**context):
         from include.custom_wherobots_provider.hooks.hooks_sql_custom import (
-            CUSTOMWherobotsSqlHook,
+            WherobotsSqlHook,
         )
         from include.helpers.sedona_helpers import create_sedona_context
         from include.helpers.visualization_helpers import create_kepler_map
@@ -224,7 +224,7 @@ def workshop_pipeline_proof_of_concept():
 
         logger = logging.getLogger(__name__)
 
-        hook = CUSTOMWherobotsSqlHook(
+        hook = WherobotsSqlHook(
             wherobots_conn_id="wherobots_default",
             runtime=Runtime.TINY,
             region=Region.AWS_US_WEST_2,

@@ -1,0 +1,1 @@
+SELECT state_name, state_code FROM %(catalog)s.%(database)s.state_boundary;

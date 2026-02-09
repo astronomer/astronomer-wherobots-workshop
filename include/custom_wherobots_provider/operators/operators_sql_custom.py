@@ -1,5 +1,5 @@
 """
-Custom Operator for executing SQL queries on Wherobots compute
+Operator for firing sql queries and collect results to s3
 """
 
 from __future__ import annotations
@@ -8,19 +8,21 @@ from typing import Sequence, Optional
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
-from wherobots.db import Runtime, Region
 from wherobots.db.constants import (
     DEFAULT_SESSION_WAIT_TIMEOUT_SECONDS,
     DEFAULT_READ_TIMEOUT_SECONDS,
     DEFAULT_RUNTIME,
+    DEFAULT_SESSION_TYPE,
 )
 from wherobots.db import Cursor as WDbCursor
+from wherobots.db.region import Region
+from wherobots.db.runtime import Runtime
+from wherobots.db.session_type import SessionType
 from pandas.core.frame import DataFrame
 
+from include.custom_wherobots_provider.hooks.hooks_sql_custom import WherobotsSqlHook
 from airflow_providers_wherobots.hooks.base import DEFAULT_CONN_ID
 from airflow_providers_wherobots.operators import warn_for_default_region
-
-from include.custom_wherobots_provider.hooks.hooks_sql_custom import CUSTOMWherobotsSqlHook
 
 
 def wherobots_default_handler(cursor: WDbCursor) -> DataFrame | None:
@@ -33,12 +35,7 @@ def wherobots_default_handler(cursor: WDbCursor) -> DataFrame | None:
     return cursor.fetchall()
 
 
-class CUSTOMWherobotsSqlOperator(SQLExecuteQueryOperator):  # type: ignore[misc]
-    """
-    Custom Wherobots SQL Operator for executing SQL queries on Wherobots compute clusters.
-    Extends the standard SQLExecuteQueryOperator with Wherobots-specific functionality.
-    """
-
+class WherobotsSqlOperator(SQLExecuteQueryOperator):  # type: ignore[misc]
     template_fields: Sequence[str] = SQLExecuteQueryOperator.template_fields
     template_fields_renderers = {"sql": "sql"}
     conn_id_field = "wherobots_conn_id"
@@ -52,6 +49,8 @@ class CUSTOMWherobotsSqlOperator(SQLExecuteQueryOperator):  # type: ignore[misc]
         version: Optional[str] = None,
         session_wait_timeout: int = DEFAULT_SESSION_WAIT_TIMEOUT_SECONDS,
         read_timeout: int = DEFAULT_READ_TIMEOUT_SECONDS,
+        force_new: bool = False,
+        session_type: SessionType = DEFAULT_SESSION_TYPE,
         **kwargs,
     ):
         super().__init__(
@@ -63,15 +62,18 @@ class CUSTOMWherobotsSqlOperator(SQLExecuteQueryOperator):  # type: ignore[misc]
         self.session_wait_timeout = session_wait_timeout
         self.read_timeout = read_timeout
         self.region = region
+        self.force_new = force_new
+        self.session_type = session_type
 
     def get_db_hook(self) -> DbApiHook:
-        """Get the database hook for executing SQL queries."""
         self.region = warn_for_default_region(self.region)
-        return CUSTOMWherobotsSqlHook(
+        return WherobotsSqlHook(
             region=self.region,
             wherobots_conn_id=self.wherobots_conn_id,
             runtime=self.runtime,
             version=self.version,
             session_wait_timeout=self.session_wait_timeout,
             read_timeout=self.read_timeout,
+            force_new=self.force_new,
+            session_type=self.session_type,
         )

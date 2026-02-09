@@ -1,0 +1,1 @@
+SELECT * FROM %(catalog)s.%(database)s.risk_comparison;
