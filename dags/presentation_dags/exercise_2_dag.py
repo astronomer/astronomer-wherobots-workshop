@@ -20,7 +20,7 @@ _RUNTIME = Runtime.MICRO
 _REGION = Region.AWS_US_WEST_2
 
 
-@dag(tags=["Exercises"])
+@dag(tags=["Exercises", "syntax"])
 def exercise_2_dag():
 
     @task

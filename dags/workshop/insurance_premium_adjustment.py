@@ -18,7 +18,6 @@ _DATABASE = os.getenv("DATABASE", "workshoptestnotebook")
 def on_failure_callback(context):
     print(f"Task {context['task_instance'].task_id} failed")
     print(f"Error: {context['exception']}")
-    print(f"Traceback: {context['traceback']}")
 
 
 @dag(
@@ -107,14 +106,14 @@ def insurance_premium_adjustment():
             print(f"\nLower risk than state average - discount eligible")
 
         return {
-            "state": state,
-            "county": county,
-            "premium_modifier_pct": premium_modifier_pct,
-            "frequency_ratio": frequency_ratio,
-            "size_ratio": size_ratio,
-            "severity_ratio": severity_ratio,
-            "damaging_ratio": damaging_ratio,
-            "risk_score": risk_score,
+            "state_id": str(state["area_id"]),
+            "county_id": str(county["area_id"]),
+            "premium_modifier_pct": float(premium_modifier_pct),
+            "frequency_ratio": float(frequency_ratio),
+            "size_ratio": float(size_ratio),
+            "severity_ratio": float(severity_ratio),
+            "damaging_ratio": float(damaging_ratio),
+            "risk_score": float(risk_score),
         }
 
     _calculate_insurance_premium = calculate_insurance_premium(
@@ -123,10 +122,11 @@ def insurance_premium_adjustment():
     _human_confirm_insurance_premium_adjustment = HITLOperator(
         task_id="human_confirm_insurance_premium_adjustment",
         subject="Insurance Premium Adjustment",
-        body=f"""
+        body="""
+{%- set data = ti.xcom_pull(task_ids='calculate_insurance_premium') -%}
 ## Insurance Premium Adjustment Review
 
-**Location:** {_calculate_insurance_premium["county"]["area_id"]}, {_calculate_insurance_premium["state"]["area_id"]}
+**Location:** {{ data.county_id }}, {{ data.state_id }}
 
 ---
 
@@ -134,17 +134,17 @@ def insurance_premium_adjustment():
 
 | Metric | Ratio |
 |--------|-------|
-| Frequency | {_calculate_insurance_premium["frequency_ratio"]}x |
-| Hail Size | {_calculate_insurance_premium["size_ratio"]}x |
-| Severity | {_calculate_insurance_premium["severity_ratio"]}x |
-| Damaging Events | {_calculate_insurance_premium["damaging_ratio"]}x |
+| Frequency | {{ "%.2f"|format(data.frequency_ratio) }}x |
+| Hail Size | {{ "%.2f"|format(data.size_ratio) }}x |
+| Severity | {{ "%.2f"|format(data.severity_ratio) }}x |
+| Damaging Events | {{ "%.2f"|format(data.damaging_ratio) }}x |
 
 ---
 
 ### Recommendation
 
-- **Risk Score:** {_calculate_insurance_premium["risk_score"]} *(1.0 = state average)*
-- **Premium Adjustment:** {_calculate_insurance_premium["premium_modifier_pct"]}%
+- **Risk Score:** {{ "%.2f"|format(data.risk_score) }} *(1.0 = state average)*
+- **Premium Adjustment:** {{ "%+.1f"|format(data.premium_modifier_pct) }}%
 
 Please review and confirm or reject this adjustment.
         """,

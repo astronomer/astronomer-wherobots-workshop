@@ -6,6 +6,7 @@ from pendulum import datetime
 @dag(
     start_date=datetime(2026, 1, 1),
     schedule="@daily",
+    tags=["syntax"]
 )
 def simple_dag():
 

@@ -7,7 +7,7 @@ from pendulum import datetime
     start_date=datetime(2026, 1, 1),
     schedule=None,
     params={"my_favorite_number": Param(type="integer", default=42)},
-    tags=["Exercises"]
+    tags=["Exercises", "syntax"]
 )
 def exercise_1_dag():
 
