@@ -156,14 +156,22 @@ worst_day_map.save_to_html(file_name=local_path)
 
 output_path = f"{S3_URI}/visualization_{US_POSTCODE}.html"
 
-# Use Spark's Hadoop filesystem to copy to S3
+# Use Hadoop FileSystem API to write a single file to S3
 from pyspark.sql import SparkSession
 spark = SparkSession.builder.getOrCreate()
 
-# Read local file and write to S3 using Spark
-with open(local_path, 'r') as f:
-    html_content = f.read()
+# Get Hadoop FileSystem and write directly
+hadoop_conf = spark._jsc.hadoopConfiguration()
+fs = spark._jvm.org.apache.hadoop.fs.FileSystem.get(
+    spark._jvm.java.net.URI(output_path), hadoop_conf
+)
+output_stream = fs.create(spark._jvm.org.apache.hadoop.fs.Path(output_path), True)
 
-# Write as single file to S3
-spark.sparkContext.parallelize([html_content]).saveAsTextFile(output_path)
+# Read local file and write to S3 as a single file
+with open(local_path, 'rb') as f:
+    html_bytes = f.read()
+
+output_stream.write(bytearray(html_bytes))
+output_stream.close()
+
 print(f"Visualization saved to {output_path}")

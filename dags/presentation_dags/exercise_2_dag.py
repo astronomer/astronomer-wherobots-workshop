@@ -20,8 +20,8 @@ _RUNTIME = Runtime.MICRO
 _REGION = Region.AWS_US_WEST_2
 
 
-@dag(tags=["helper"])
-def test_wherobots_connection():
+@dag(tags=["Exercises"])
+def exercise_2_dag():
 
     @task
     def test_sql_hook():
@@ -63,4 +63,4 @@ def test_wherobots_connection():
     )
 
 
-test_wherobots_connection()
+exercise_2_dag()
