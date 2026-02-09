@@ -11,9 +11,7 @@ _RUNTIME = Runtime.TINY
 _REGION = Region.AWS_US_WEST_2
 _CATALOG = os.getenv("CATALOG", "org_catalog")
 _DATABASE = os.getenv("DATABASE", "workshoptestnotebook")
-_S3_URI = os.getenv(
-    "S3_URI", "s3://wbts-wbc-wayuylkmvf/sm3tlot7a0/data/customer-3i2is57clci3n7/testing"
-)
+_S3_URI = os.getenv("S3_URI")
 
 
 @dag

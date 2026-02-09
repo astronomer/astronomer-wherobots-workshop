@@ -10,7 +10,7 @@ _WHEROBOTS_CONN_ID = os.getenv("WHEROBOTS_CONN_ID", "wherobots_default")
 _RUNTIME = Runtime.TINY
 _REGION = Region.AWS_US_WEST_2
 _CATALOG = os.getenv("CATALOG", "org_catalog")
-_DATABASE = os.getenv("DATABASE", "workshoptestnotebook")
+_DATABASE = os.getenv("DATABASE", "astronomer_workshop")
 
 
 @dag(

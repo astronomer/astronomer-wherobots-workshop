@@ -13,15 +13,16 @@ _WHEROBOTS_CONN_ID = os.getenv("WHEROBOTS_CONN_ID", "wherobots_default")
 _RUNTIME = Runtime.TINY
 _REGION = Region.AWS_US_WEST_2
 _CATALOG = os.getenv("CATALOG", "org_catalog")
-_DATABASE = os.getenv("DATABASE", "workshoptestnotebook")
-_S3_URI = os.getenv(
-    "S3_URI", "s3://wbts-wbc-wayuylkmvf/sm3tlot7a0/data/customer-3i2is57clci3n7/testing"
-)
+_DATABASE = os.getenv("DATABASE", "astronomer_workshop")
+_S3_URI = os.getenv("S3_URI")
 _END_DATE = os.getenv("END_DATE", "2026-01-01")
 _LOOKBACK_MONTHS = os.getenv("LOOKBACK_MONTHS", 3)
 
 
-@dag(schedule=[Asset("start_noaa_etl")], template_searchpath=[f"{os.getenv('AIRFLOW_HOME')}/include/sql"])
+@dag(
+    schedule=[Asset("start_noaa_etl")],
+    template_searchpath=[f"{os.getenv('AIRFLOW_HOME')}/include/sql"],
+)
 def noaa_etl():
 
     _load_hail_data = WherobotsRunOperator(
@@ -33,10 +34,14 @@ def noaa_etl():
         run_python={
             "uri": f"{_S3_URI}/load_hail_data.py",
             "args": [
-                "--catalog", _CATALOG,
-                "--database", _DATABASE,
-                "--end-date", _END_DATE,
-                "--lookback-months", str(_LOOKBACK_MONTHS),
+                "--catalog",
+                _CATALOG,
+                "--database",
+                _DATABASE,
+                "--end-date",
+                _END_DATE,
+                "--lookback-months",
+                str(_LOOKBACK_MONTHS),
             ],
         },
         poll_logs=True,
