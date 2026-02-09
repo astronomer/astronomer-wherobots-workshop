@@ -68,7 +68,7 @@ def database_setup():
         return_last=False,
     ).expand(sql=_sql_scripts)
 
-    @task()#outlets=[Asset("start_noaa_etl"), Asset("start_overture_etl")])
+    @task(outlets=[Asset("start_noaa_etl"), Asset("start_overture_etl")])
     def database_setup_complete():
         print("Database setup complete")
 

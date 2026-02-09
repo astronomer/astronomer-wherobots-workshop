@@ -80,7 +80,7 @@ county_label = (
 
 selected_county_df = sedona.sql(
     f"""
-    SELECT area as geometry, postcode
+    SELECT area as geometry, postcode, 1 as selected
     FROM {CATALOG}.{DATABASE}.postcode_areas
     WHERE postcode = '{US_POSTCODE}'
 """
@@ -110,9 +110,11 @@ map_config = {
     },
 }
 
-worst_day_map = SedonaKepler.create_map(state_hail_worst_day_df, name="hail")
+# Layer order in Kepler: first added = top of stack
+# Order: selected_county (top) -> hail (middle) -> counties (bottom)
+worst_day_map = SedonaKepler.create_map(selected_county_df, name="selected_county", config=map_config)
+SedonaKepler.add_df(worst_day_map, state_hail_worst_day_df, name="hail")
 SedonaKepler.add_df(worst_day_map, counties_df, name="counties")
-SedonaKepler.add_df(worst_day_map, selected_county_df, name="selected_county")
 
 local_path = f"/tmp/visualization_{US_POSTCODE}.html"
 worst_day_map.save_to_html(file_name=local_path)
