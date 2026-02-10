@@ -116,8 +116,6 @@ map_config = {
     },
 }
 
-# Layer order in Kepler: first added = top of stack
-# Order: selected_county (top) -> hail (middle) -> counties (bottom)
 worst_day_map = SedonaKepler.create_map(selected_county_df, name="selected_county", config=map_config)
 SedonaKepler.add_df(worst_day_map, state_hail_worst_day_df, name="hail")
 SedonaKepler.add_df(worst_day_map, counties_df, name="counties")
