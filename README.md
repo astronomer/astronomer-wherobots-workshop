@@ -129,3 +129,4 @@ Airflow features:
 - [Rerunning Dags guide](https://www.astronomer.io/docs/learn/rerunning-dags)
 - [Human-in-the-Loop guide](https://www.astronomer.io/docs/learn/airflow-human-in-the-loop)
 - [Dynamic Tasks guide](https://www.astronomer.io/docs/learn/dynamic-tasks)
+- [Alerts and Notifications guide](https://www.astronomer.io/docs/learn/error-notifications-in-airflow)
