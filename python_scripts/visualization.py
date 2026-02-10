@@ -35,6 +35,14 @@ worst_day = sedona.sql(
 
 worst_date = worst_day["date"]
 
+state_code = sedona.sql(
+    f"""
+    SELECT COALESCE(p.state_code, (SELECT state_code FROM {CATALOG}.{DATABASE}.state_boundary LIMIT 1)) as state_code
+    FROM {CATALOG}.{DATABASE}.postcode_areas p
+    WHERE p.postcode = '{US_POSTCODE}'
+"""
+).collect()[0]["state_code"]
+
 state_hail_worst_day_df = sedona.sql(
     f"""
     SELECT 
@@ -48,17 +56,14 @@ state_hail_worst_day_df = sedona.sql(
         CAST(DATE(ZTIME) AS STRING) as date
     FROM {CATALOG}.{DATABASE}.hail_state
     WHERE DATE(ZTIME) = '{worst_date}'
+      AND state_code = '{state_code}'
 """
 )
-
-state_boundary = sedona.sql(
-    f"SELECT state_code FROM {CATALOG}.{DATABASE}.state_boundary"
-).collect()[0]["state_code"]
 
 counties_df = (
     sedona.table("wherobots_open_data.overture_maps_foundation.divisions_division_area")
     .where(col("subtype") == "county")
-    .where(col("region") == state_boundary)
+    .where(col("region") == state_code)
     .select("geometry", col("names.primary").alias("county_name"))
 )
 
@@ -89,9 +94,10 @@ selected_county_df = sedona.sql(
 map_center = sedona.sql(
     f"""
     SELECT 
-        ST_X(ST_Centroid(geometry)) as lon,
-        ST_Y(ST_Centroid(geometry)) as lat
-    FROM {CATALOG}.{DATABASE}.state_boundary
+        ST_X(ST_Centroid(s.geometry)) as lon,
+        ST_Y(ST_Centroid(s.geometry)) as lat
+    FROM {CATALOG}.{DATABASE}.state_boundary s
+    WHERE s.state_code = '{state_code}'
 """
 ).collect()[0]
 
