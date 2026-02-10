@@ -114,3 +114,18 @@ astro dev start
 
 5. Navigate to `http://localhost:8080` to access the Airflow UI and follow the rest of the instructions above. 
 
+# Resources
+
+- [Wherobots Airflow provider Documentation](https://docs.wherobots.com/develop/airflow-provider)
+- [Wherobots Airflow provider Repository](https://github.com/wherobots/airflow-providers-wherobots)
+- [Airflow 3 eBook](https://www.astronomer.io/ebooks/practical-guide-to-apache-airflow-3)
+- [Wherobots docs](https://docs.wherobots.com)
+- [Airflow docs](https://airflow.apache.org/docs/)
+
+Airflow features:
+
+- [Intro to Airflow guide](https://www.astronomer.io/docs/learn/intro-to-airflow)
+- [Assets guide](https://www.astronomer.io/docs/learn/airflow-datasets)
+- [Rerunning Dags guide](https://www.astronomer.io/docs/learn/rerunning-dags)
+- [Human-in-the-Loop guide](https://www.astronomer.io/docs/learn/airflow-human-in-the-loop)
+- [Dynamic Tasks guide](https://www.astronomer.io/docs/learn/dynamic-tasks)
